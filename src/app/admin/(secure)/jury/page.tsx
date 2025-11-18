@@ -7,8 +7,10 @@ import {
   createJury,
   deleteJuryById,
   getJuries,
+  getAssignments,
   updateJuryById,
 } from "@/lib/data";
+import { JuryCardWrapper } from "@/components/jury-card-wrapper";
 
 const jurySchema = z.object({
   id: z.string().optional(),
@@ -61,7 +63,17 @@ async function updateJuryAction(formData: FormData) {
 }
 
 export default async function JuryManagementPage() {
-  const juryList = await getJuries();
+  const [juryList, assignments] = await Promise.all([
+    getJuries(),
+    getAssignments(),
+  ]);
+
+  // Count assignments per jury
+  const assignmentCounts = new Map<string, number>();
+  assignments.forEach((assignment) => {
+    const count = assignmentCounts.get(assignment.jury_id) || 0;
+    assignmentCounts.set(assignment.jury_id, count + 1);
+  });
 
   return (
     <div className="space-y-8">
@@ -77,33 +89,25 @@ export default async function JuryManagementPage() {
         </form>
       </Card>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
         {juryList.map((jury) => (
-          <Card key={jury.id} className="bg-slate-900/70">
-            <CardTitle>{jury.name}</CardTitle>
-            <CardDescription className="mt-1">
-              Jury ID: {jury.id} · Password: {jury.password}
-            </CardDescription>
-            <form
-              action={updateJuryAction}
-              className="mt-4 grid gap-3 text-sm text-white"
-            >
-              <input type="hidden" name="id" value={jury.id} />
-              <Input name="name" defaultValue={jury.name} />
-              <Input name="password" defaultValue={jury.password} />
-              <Button type="submit" variant="secondary">
-                Update
-              </Button>
-            </form>
-            <form action={deleteJuryAction} className="mt-3">
-              <input type="hidden" name="id" value={jury.id} />
-              <Button type="submit" variant="danger">
-                Delete
-              </Button>
-            </form>
-          </Card>
+          <JuryCardWrapper
+            key={jury.id}
+            jury={jury}
+            assignmentCount={assignmentCounts.get(jury.id) || 0}
+            updateAction={updateJuryAction}
+            deleteAction={deleteJuryAction}
+          />
         ))}
       </div>
+      {juryList.length === 0 && (
+        <Card>
+          <CardTitle>No Jury Members</CardTitle>
+          <CardDescription>
+            Create your first jury member to get started.
+          </CardDescription>
+        </Card>
+      )}
     </div>
   );
 }

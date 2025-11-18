@@ -156,6 +156,30 @@ export default async function StudentsPage() {
 
   return (
     <div className="space-y-8">
+      <div className="flex flex-row gap-4 ">
+      <Card className="flex-1">
+        <CardTitle>Add Student</CardTitle>
+        <CardDescription className="mt-2">
+          Maintain a searchable roster for quick result entry.
+        </CardDescription>
+        <form
+          action={createStudentAction}
+          className="mt-6 grid gap-4 md:grid-cols-2"
+        >
+          <Input name="name" placeholder="Student name" required />
+          <Input name="chest_no" placeholder="Chest number" required />
+          <Select name="team_id" defaultValue={teams[0]?.id} required>
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit" className="md:col-span-2">
+            Save Student
+          </Button>
+        </form>
+      </Card>
       <Card>
         <CardTitle>Bulk Import Students (CSV)</CardTitle>
         <CardDescription className="mt-2">
@@ -180,30 +204,7 @@ export default async function StudentsPage() {
           <Button type="submit">Import CSV</Button>
         </form>
       </Card>
-
-      <Card>
-        <CardTitle>Add Student</CardTitle>
-        <CardDescription className="mt-2">
-          Maintain a searchable roster for quick result entry.
-        </CardDescription>
-        <form
-          action={createStudentAction}
-          className="mt-6 grid gap-4 md:grid-cols-2"
-        >
-          <Input name="name" placeholder="Student name" required />
-          <Input name="chest_no" placeholder="Chest number" required />
-          <Select name="team_id" defaultValue={teams[0]?.id} required>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit" className="md:col-span-2">
-            Save Student
-          </Button>
-        </form>
-      </Card>
+      </div>
 
       <StudentManager
         students={students}
