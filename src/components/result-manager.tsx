@@ -100,8 +100,8 @@ export function ResultManager({
       });
     } else if (sort === "score") {
       list.sort((a, b) => {
-        const aScore = a.entries.reduce((sum, e) => sum + e.score, 0);
-        const bScore = b.entries.reduce((sum, e) => sum + e.score, 0);
+        const aScore = getTotalScore(a);
+        const bScore = getTotalScore(b);
         return bScore - aScore;
       });
     } else {
@@ -135,9 +135,15 @@ export function ResultManager({
     return "—";
   };
 
-  const getTotalScore = (result: ResultRecord) => {
-    return result.entries.reduce((sum, entry) => sum + entry.score, 0);
-  };
+  function getPenaltyTotal(result: ResultRecord) {
+    return result.penalties?.reduce((sum, penalty) => sum + penalty.points, 0) ?? 0;
+  }
+
+  function getTotalScore(result: ResultRecord) {
+    const penaltyTotal = getPenaltyTotal(result);
+    const entryTotal = result.entries.reduce((sum, entry) => sum + entry.score, 0);
+    return entryTotal - penaltyTotal;
+  }
 
   return (
     <div className="space-y-6 rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_20px_60px_rgba(8,47,73,0.35)]">
@@ -264,6 +270,16 @@ export function ResultManager({
                       <p className="text-xs text-emerald-300">{entry.score} pts</p>
                     </div>
                   ))}
+                  {(result.penalties?.length ?? 0) > 0 && (
+                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-center">
+                      <p className="text-xs text-red-200/90">Penalty</p>
+                      <p className="text-sm font-semibold text-white">
+                        -
+                        {getPenaltyTotal(result)}
+                        {" pts"}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="text-center w-full sm:w-auto">
                   <p className="text-lg font-bold text-emerald-300">{totalScore}</p>
@@ -441,6 +457,30 @@ export function ResultManager({
                   </div>
                 );
               })}
+              {(viewResult.penalties?.length ?? 0) > 0 && (
+                <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-red-200">Minus points</p>
+                  {viewResult.penalties?.map((penalty, index) => {
+                    const student = penalty.student_id ? studentMap.get(penalty.student_id) : undefined;
+                    const team = penalty.team_id ? teamMap.get(penalty.team_id) : undefined;
+                    return (
+                      <div key={`${penalty.team_id ?? penalty.student_id ?? index}`} className="text-sm text-white/80">
+                        <p className="font-semibold">
+                          {student?.name ?? team?.name ?? "Unknown"} · -{penalty.points} pts
+                        </p>
+                        {student && (
+                          <p className="text-xs text-white/50">
+                            Chest #{student.chest_no} · Team {teamMap.get(student.team_id)?.name ?? "Unknown"}
+                          </p>
+                        )}
+                        {!student && team && (
+                          <p className="text-xs text-white/50">Team ID: {team.id}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </Modal>

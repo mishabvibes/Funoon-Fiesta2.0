@@ -18,18 +18,24 @@ export function TeamStudentList({ students, updateAction, deleteAction }: Props)
     <div className="space-y-4">
       {students.map((student) => (
         <Card key={student.id} className="space-y-3 border-white/10 bg-white/5 p-4 text-white">
-          <form action={updateAction} className="grid gap-3 md:grid-cols-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-lg font-semibold text-white">{student.name}</p>
+              <p className="text-sm text-white/60">Chest: {student.chestNumber}</p>
+            </div>
+            <form action={deleteAction} className="text-right">
+              <input type="hidden" name="studentId" value={student.id} />
+              <Button type="submit" variant="danger">
+                Delete
+              </Button>
+            </form>
+          </div>
+          <form action={updateAction} className="grid gap-3 md:grid-cols-2">
             <input type="hidden" name="studentId" value={student.id} />
+            <input type="hidden" name="chestNumber" value={student.chestNumber} />
             <Input name="name" defaultValue={student.name} placeholder="Student name" required />
-            <Input name="chestNumber" defaultValue={student.chestNumber} placeholder="Chest number" required />
             <Button type="submit" className="w-full">
-              Save
-            </Button>
-          </form>
-          <form action={deleteAction} className="text-right">
-            <input type="hidden" name="studentId" value={student.id} />
-            <Button type="submit" variant="danger">
-              Delete
+              Update name
             </Button>
           </form>
         </Card>

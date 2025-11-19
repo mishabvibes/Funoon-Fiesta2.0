@@ -50,9 +50,7 @@ export default async function HomePage() {
               <Button variant="secondary">Scoreboards</Button>
             </Link>
             <Link href="/team/login">
-              <Button variant="outline" className="border-white/40 text-white hover:bg-white/10">
-                Team Portal
-              </Button>
+              <Button variant="outline">Team Portal</Button>
             </Link>
           </div>
         </div>

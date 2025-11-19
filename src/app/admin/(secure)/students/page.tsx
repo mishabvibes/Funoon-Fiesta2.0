@@ -10,21 +10,47 @@ import {
   deleteStudentById,
   getStudents,
   getTeams,
+  getPrograms,
   updateStudentById,
 } from "@/lib/data";
+import { getProgramRegistrations } from "@/lib/team-data";
+
+function generateNextChestNumber(teamName: string, existingStudents: Array<{ chest_no: string }>): string {
+  const prefix = teamName.slice(0, 2).toUpperCase();
+  const teamStudents = existingStudents.filter((student) => {
+    const chest = student.chest_no.toUpperCase();
+    return chest.startsWith(prefix) && /^\d{3}$/.test(chest.slice(2));
+  });
+
+  if (teamStudents.length === 0) {
+    return `${prefix}001`;
+  }
+
+  const numbers = teamStudents
+    .map((student) => {
+      const numStr = student.chest_no.toUpperCase().slice(2);
+      const num = parseInt(numStr, 10);
+      return isNaN(num) ? 0 : num;
+    })
+    .filter((num) => num > 0);
+
+  const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+  const nextNumber = maxNumber + 1;
+  return `${prefix}${String(nextNumber).padStart(3, "0")}`;
+}
 
 const studentSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2),
   team_id: z.string().min(2),
-  chest_no: z.string().min(1),
+  chest_no: z.string().optional(),
 });
 
 const csvStudentSchema = z.object({
   name: z.string().min(2, "Student name is required"),
   team_id: z.string().min(2).optional(),
   team_name: z.string().min(2).optional(),
-  chest_no: z.string().min(1, "Chest number is required"),
+  chest_no: z.string().optional(),
 }).refine((data) => data.team_id || data.team_name, {
   message: "Either team_id or team_name is required",
   path: ["team_id"],
@@ -35,25 +61,43 @@ async function upsertStudent(formData: FormData, mode: "create" | "update") {
     id: String(formData.get("id") ?? "").trim() || undefined,
     name: String(formData.get("name") ?? "").trim(),
     team_id: String(formData.get("team_id") ?? "").trim(),
-    chest_no: String(formData.get("chest_no") ?? "").trim(),
+    chest_no: String(formData.get("chest_no") ?? "").trim() || undefined,
   });
   if (!parsed.success) {
     throw new Error(parsed.error.issues.map((issue) => issue.message).join(", "));
   }
   const payload = parsed.data;
 
+  let chest_no = payload.chest_no;
+  
+  if (mode === "create" && !chest_no) {
+    const [students, teams] = await Promise.all([getStudents(), getTeams()]);
+    const team = teams.find((t) => t.id === payload.team_id);
+    if (!team) {
+      throw new Error("Team not found");
+    }
+    chest_no = generateNextChestNumber(team.name, students);
+  } else if (mode === "update" && !chest_no) {
+    const students = await getStudents();
+    const current = students.find((s) => s.id === payload.id);
+    if (!current) {
+      throw new Error("Student not found");
+    }
+    chest_no = current.chest_no;
+  }
+
   if (mode === "create") {
     await createStudent({
       name: payload.name,
       team_id: payload.team_id,
-      chest_no: payload.chest_no,
+      chest_no: chest_no!,
     });
   } else {
     if (!payload.id) throw new Error("Student ID missing");
     await updateStudentById(payload.id, {
       name: payload.name,
       team_id: payload.team_id,
-      chest_no: payload.chest_no,
+      chest_no: chest_no!,
     });
   }
 
@@ -111,7 +155,7 @@ function parseStudentCsv(content: string) {
     throw new Error('Missing "team_id" or "team_name" column in CSV header.');
   }
   
-  const requiredHeaders = ["name", "chest_no"];
+  const requiredHeaders = ["name"];
   if (hasTeamId) requiredHeaders.push("team_id");
   if (hasTeamName) requiredHeaders.push("team_name");
   
@@ -185,19 +229,29 @@ async function importStudentsAction(formData: FormData) {
       );
     }
     
+    const team = teams.find((t) => t.id === resolvedTeamId);
+    if (!team) {
+      throw new Error(`Row ${entry.row}: Team not found`);
+    }
+    
+    const students = await getStudents();
+    const chest_no = parsed.data.chest_no?.trim() || generateNextChestNumber(team.name, students);
+    
     await createStudent({
       name: parsed.data.name,
       team_id: resolvedTeamId,
-      chest_no: parsed.data.chest_no,
+      chest_no,
     });
   }
   revalidatePath("/admin/students");
 }
 
 export default async function StudentsPage() {
-  const [students, teams] = await Promise.all([
+  const [students, teams, programs, registrations] = await Promise.all([
     getStudents(),
     getTeams(),
+    getPrograms(),
+    getProgramRegistrations(),
   ]);
 
   return (
@@ -213,7 +267,6 @@ export default async function StudentsPage() {
           className="mt-6 grid gap-4 md:grid-cols-2"
         >
           <Input name="name" placeholder="Student name" required />
-          <Input name="chest_no" placeholder="Chest number" required />
           <Select name="team_id" defaultValue={teams[0]?.id} required>
             {teams.map((team) => (
               <option key={team.id} value={team.id}>
@@ -225,14 +278,17 @@ export default async function StudentsPage() {
             Save Student
           </Button>
         </form>
+        <p className="mt-2 text-xs text-white/60">
+          Chest number will be auto-generated based on team name (e.g., {teams[0]?.name.slice(0, 2).toUpperCase()}001)
+        </p>
       </Card>
       <Card className="h-full">
         <CardTitle>Bulk Import Students (CSV)</CardTitle>
         <CardDescription className="mt-2">
-          Required columns: <code>name, chest_no</code> and either <code>team_id</code> or <code>team_name</code>
+          Required columns: <code>name</code> and either <code>team_id</code> or <code>team_name</code>
           <br />
           <span className="text-xs text-white/50">
-            Team names: SAMARQAND, NAHAVAND, YAMAMA, QURTUBA, MUQADDAS, BUKHARA
+            Chest numbers will be auto-generated. Team names: SAMARQAND, NAHAVAND, YAMAMA, QURTUBA, MUQADDAS, BUKHARA
           </span>
         </CardDescription>
         <form
@@ -259,6 +315,8 @@ export default async function StudentsPage() {
       <StudentManager
         students={students}
         teams={teams}
+        programs={programs}
+        registrations={registrations}
         updateAction={updateStudentAction}
         deleteAction={deleteStudentAction}
         bulkDeleteAction={bulkDeleteStudentsAction}

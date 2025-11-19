@@ -109,6 +109,16 @@ const resultEntrySchema = new Schema(
   { _id: false },
 );
 
+const penaltyEntrySchema = new Schema(
+  {
+    student_id: { type: String },
+    team_id: { type: String },
+    points: { type: Number, required: true },
+    reason: { type: String },
+  },
+  { _id: false },
+);
+
 const ResultSchema = new Schema<ResultRecord>(
   {
     id: { type: String, required: true, unique: true },
@@ -119,6 +129,7 @@ const ResultSchema = new Schema<ResultRecord>(
     entries: { type: [resultEntrySchema], required: true },
     status: { type: String, enum: ["pending", "approved"], default: "pending" },
     notes: String,
+    penalties: { type: [penaltyEntrySchema], default: [] },
   },
   { timestamps: true },
 );

@@ -37,6 +37,47 @@ function buildInitialEntries(result: Awaited<ReturnType<typeof getPendingResultB
   return initial;
 }
 
+function buildInitialPenalties(result: Awaited<ReturnType<typeof getPendingResultById>>) {
+  return (
+    result?.penalties?.map((penalty) => ({
+      targetId: penalty.student_id ?? penalty.team_id ?? "",
+      points: penalty.points,
+      type: penalty.student_id ? "student" : "team",
+    })) ?? []
+  );
+}
+
+type PenaltyFormPayload = {
+  id: string;
+  type: "student" | "team";
+  points: number;
+};
+
+function parsePenaltyPayloads(formData: FormData): PenaltyFormPayload[] {
+  const rowValue = String(formData.get("penalty_rows") ?? "");
+  const rowIds = rowValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return rowIds
+    .map((rowId) => {
+      const target = String(formData.get(`penalty_target_${rowId}`) ?? "").trim();
+      const type = String(formData.get(`penalty_type_${rowId}`) ?? "").trim();
+      const pointsRaw = String(formData.get(`penalty_points_${rowId}`) ?? "").trim();
+      const points = pointsRaw ? Math.abs(Number(pointsRaw)) : 0;
+      if (!target || points <= 0 || (type !== "student" && type !== "team") || Number.isNaN(points)) {
+        return null;
+      }
+      return {
+        id: target,
+        type,
+        points,
+      } satisfies PenaltyFormPayload;
+    })
+    .filter((penalty): penalty is PenaltyFormPayload => Boolean(penalty));
+}
+
 export default async function EditPendingResultPage({
   params,
 }: EditPendingResultPageProps) {
@@ -60,6 +101,7 @@ export default async function EditPendingResultPage({
   }
 
   const initial = buildInitialEntries(result);
+  const initialPenaltyList = buildInitialPenalties(result);
 
   async function updatePendingAction(formData: FormData) {
     "use server";
@@ -75,8 +117,25 @@ export default async function EditPendingResultPage({
         grade,
       };
     });
-    await ensureRegisteredCandidates(program.id, winners.map((winner) => winner.id));
-    await updatePendingResultEntries(result_id, winners);
+    const penaltyType = String(formData.get("penalty_type") ?? "none");
+    const penaltyTarget = String(formData.get("penalty_target") ?? "").trim();
+    const penaltyPointsRaw = String(formData.get("penalty_points") ?? "").trim();
+    const penaltyPoints = penaltyPointsRaw ? Math.abs(Number(penaltyPointsRaw)) : 0;
+    const penalty =
+      penaltyTarget && penaltyPoints > 0 && (penaltyType === "student" || penaltyType === "team")
+        ? {
+            id: penaltyTarget,
+            type: penaltyType,
+            points: penaltyPoints,
+          }
+        : null;
+
+    const penalties = parsePenaltyPayloads(formData);
+    await ensureRegisteredCandidates(program.id, [
+      ...winners.map((winner) => winner.id),
+      ...penalties.map((penalty) => penalty.id),
+    ]);
+    await updatePendingResultEntries(result_id, winners, penalties);
     redirect("/admin/pending-results");
   }
 
@@ -94,6 +153,7 @@ export default async function EditPendingResultPage({
         action={updatePendingAction}
         lockProgram
         initial={initial}
+        initialPenalties={initialPenaltyList}
         submitLabel="Update Pending Result"
       />
     </div>

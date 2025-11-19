@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TeamStudentList } from "@/components/team-student-list";
+import { ChestNumberPreview } from "@/components/chest-number-preview";
 import { getCurrentTeam } from "@/lib/auth";
 import {
   deletePortalStudent,
@@ -16,17 +17,44 @@ function redirectWithMessage(message: string, type: "error" | "success" = "error
   redirect(`/team/register-students?${params.toString()}`);
 }
 
+function generateNextChestNumber(teamName: string, existingStudents: Array<{ chestNumber: string }>): string {
+  const prefix = teamName.slice(0, 2).toUpperCase();
+  const teamStudents = existingStudents.filter((student) => {
+    const chest = student.chestNumber.toUpperCase();
+    return chest.startsWith(prefix) && /^\d{3}$/.test(chest.slice(2));
+  });
+
+  if (teamStudents.length === 0) {
+    return `${prefix}001`;
+  }
+
+  const numbers = teamStudents
+    .map((student) => {
+      const numStr = student.chestNumber.toUpperCase().slice(2);
+      const num = parseInt(numStr, 10);
+      return isNaN(num) ? 0 : num;
+    })
+    .filter((num) => num > 0);
+
+  const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+  const nextNumber = maxNumber + 1;
+  return `${prefix}${String(nextNumber).padStart(3, "0")}`;
+}
+
 async function createStudentAction(formData: FormData) {
   "use server";
   const team = await getCurrentTeam();
   if (!team) redirect("/team/login");
 
   const name = String(formData.get("name") ?? "").trim();
-  const chestNumber = String(formData.get("chestNumber") ?? "").trim().toUpperCase();
-  if (!name || !chestNumber) {
-    redirectWithMessage("Name and chest number are required.");
+  
+  if (!name) {
+    redirectWithMessage("Student name is required.");
   }
+
   const students = await getPortalStudents();
+  const chestNumber = generateNextChestNumber(team.teamName, students);
+
   if (students.some((student) => student.chestNumber.toUpperCase() === chestNumber)) {
     redirectWithMessage("Chest number already registered.");
   }
@@ -126,11 +154,11 @@ export default async function RegisterStudentsPage({
       <Card className="border-white/10 bg-white/5 p-6 text-white">
         <CardTitle>Add student</CardTitle>
         <CardDescription className="mt-2 text-white/70">
-          Chest numbers must be unique across the festival.
+          Chest number will be auto-generated automatically.
         </CardDescription>
-        <form action={createStudentAction} className="mt-4 grid gap-4 md:grid-cols-3">
+        <ChestNumberPreview teamName={team.teamName} teamStudents={teamStudents} />
+        <form action={createStudentAction} className="mt-4 grid gap-4 md:grid-cols-2">
           <Input name="name" placeholder="Student name" required />
-          <Input name="chestNumber" placeholder="Chest number" required />
           <Button type="submit">Add student</Button>
         </form>
       </Card>

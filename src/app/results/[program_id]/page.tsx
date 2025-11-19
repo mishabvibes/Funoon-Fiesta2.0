@@ -165,6 +165,39 @@ export default async function ProgramDetailPage({ params }: ProgramDetailPagePro
                 );
               })}
           </div>
+          {(data.result.penalties?.length ?? 0) > 0 && (
+            <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
+              <p className="text-sm font-semibold text-red-200">Minus points applied</p>
+              <div className="mt-3 space-y-3">
+                {data.result.penalties?.map((penalty, index) => {
+                  const student = penalty.student_id
+                    ? data.studentMap.get(penalty.student_id)
+                    : undefined;
+                  const team =
+                    penalty.team_id && (!student || student.team_id === penalty.team_id)
+                      ? data.teamMap.get(penalty.team_id)
+                      : student
+                        ? data.teamMap.get(student.team_id)
+                        : data.teamMap.get(penalty.team_id ?? "");
+                  return (
+                    <div key={`${penalty.team_id ?? penalty.student_id ?? index}`} className="text-sm text-white/80">
+                      <p className="font-semibold">
+                        {student?.name ?? team?.name ?? "Unknown"} · -{penalty.points} pts
+                      </p>
+                      {student && (
+                        <p className="text-xs text-white/60">
+                          Chest #{student.chest_no} · Team {team?.name ?? "Unknown"}
+                        </p>
+                      )}
+                      {!student && team && (
+                        <p className="text-xs text-white/60">Team ID: {team.id}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <p className="mt-6 text-xs text-white/50">
             Approved on {new Date(data.result.submitted_at).toLocaleString()}
           </p>

@@ -12,9 +12,6 @@ async function logoutAction() {
 
 export default async function TeamLayout({ children }: { children: ReactNode }) {
   const team = await getCurrentTeam();
-  if (!team) {
-    redirect("/team/login");
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">

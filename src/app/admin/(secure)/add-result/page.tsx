@@ -5,6 +5,37 @@ import { getProgramRegistrations } from "@/lib/team-data";
 import { ensureRegisteredCandidates } from "@/lib/registration-guard";
 import { submitResultToPending } from "@/lib/result-service";
 
+type PenaltyFormPayload = {
+  id: string;
+  type: "student" | "team";
+  points: number;
+};
+
+function parsePenaltyPayloads(formData: FormData): PenaltyFormPayload[] {
+  const rowValue = String(formData.get("penalty_rows") ?? "");
+  const rowIds = rowValue
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return rowIds
+    .map((rowId) => {
+      const target = String(formData.get(`penalty_target_${rowId}`) ?? "").trim();
+      const type = String(formData.get(`penalty_type_${rowId}`) ?? "").trim();
+      const pointsRaw = String(formData.get(`penalty_points_${rowId}`) ?? "").trim();
+      const points = pointsRaw ? Math.abs(Number(pointsRaw)) : 0;
+      if (!target || points <= 0 || (type !== "student" && type !== "team") || Number.isNaN(points)) {
+        return null;
+      }
+      return {
+        id: target,
+        type,
+        points,
+      } satisfies PenaltyFormPayload;
+    })
+    .filter((penalty): penalty is PenaltyFormPayload => Boolean(penalty));
+}
+
 async function submitResultAction(formData: FormData) {
   "use server";
 
@@ -29,12 +60,18 @@ async function submitResultAction(formData: FormData) {
     };
   });
 
-  await ensureRegisteredCandidates(programId, winners.map((winner) => winner.id));
+  const penalties = parsePenaltyPayloads(formData);
+
+  await ensureRegisteredCandidates(programId, [
+    ...winners.map((winner) => winner.id),
+    ...penalties.map((penalty) => penalty.id),
+  ]);
 
   await submitResultToPending({
     programId,
     juryId,
     winners,
+    penalties,
   });
 
   redirect("/admin/pending-results");

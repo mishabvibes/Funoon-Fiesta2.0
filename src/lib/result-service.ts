@@ -15,12 +15,19 @@ import {
   StudentModel,
   TeamModel,
 } from "./models";
-import type { ResultEntry, ResultRecord } from "./types";
+import type { PenaltyEntry, ResultEntry, ResultRecord } from "./types";
 
 type WinnerPayload = {
   position: 1 | 2 | 3;
   id: string;
   grade: "A" | "B" | "C" | "none";
+};
+
+type PenaltyPayload = {
+  id: string;
+  type: "student" | "team";
+  points: number;
+  reason?: string;
 };
 
 function sanitizeGrade(grade: string | undefined): "A" | "B" | "C" | "none" {
@@ -93,14 +100,83 @@ async function applyEntryScores(entries: ResultEntry[], direction: 1 | -1) {
   }
 }
 
+async function buildPenaltyEntries(penalties?: PenaltyPayload[] | null) {
+  if (!penalties || penalties.length === 0) {
+    return [] as PenaltyEntry[];
+  }
+
+  const studentIds = Array.from(
+    new Set(
+      penalties
+        .filter((penalty) => penalty.type === "student")
+        .map((penalty) => penalty.id),
+    ),
+  );
+  const teamIds = Array.from(
+    new Set(
+      penalties
+        .filter((penalty) => penalty.type === "team")
+        .map((penalty) => penalty.id),
+    ),
+  );
+
+  const [students, teams] = await Promise.all([
+    studentIds.length > 0 ? StudentModel.find({ id: { $in: studentIds } }).lean() : [],
+    teamIds.length > 0 ? TeamModel.find({ id: { $in: teamIds } }).lean() : [],
+  ]);
+  const studentMap = new Map(students.map((student) => [student.id, student]));
+  const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+  return penalties.map((penalty) => {
+    if (penalty.type === "student") {
+      const student = studentMap.get(penalty.id);
+      if (!student) {
+        throw new Error("Invalid student selected for minus points.");
+      }
+      return {
+        student_id: student.id,
+        team_id: student.team_id,
+        points: penalty.points,
+        reason: penalty.reason,
+      };
+    }
+
+    const team = teamMap.get(penalty.id);
+    if (!team) {
+      throw new Error("Invalid team selected for minus points.");
+    }
+    return {
+      team_id: team.id,
+      points: penalty.points,
+      reason: penalty.reason,
+    };
+  });
+}
+
+async function applyPenalties(
+  penalties: PenaltyEntry[] | undefined,
+  direction: 1 | -1,
+) {
+  if (!penalties || penalties.length === 0) return;
+
+  for (const penalty of penalties) {
+    const delta = penalty.points * direction;
+    if (penalty.team_id) {
+      await updateLiveScore(penalty.team_id, -delta);
+    }
+  }
+}
+
 export async function submitResultToPending({
   programId,
   juryId,
   winners,
+  penalties: penaltyPayloads,
 }: {
   programId: string;
   juryId: string;
   winners: WinnerPayload[];
+  penalties?: PenaltyPayload[] | null;
 }) {
   await connectDB();
   const [program, jury] = await Promise.all([
@@ -119,6 +195,7 @@ export async function submitResultToPending({
   }
 
   const entries = await buildEntries(program, winners);
+  const penalties = await buildPenaltyEntries(penaltyPayloads);
 
   const record: ResultRecord = {
     id: randomUUID(),
@@ -127,6 +204,7 @@ export async function submitResultToPending({
     submitted_by: jury.name,
     submitted_at: new Date().toISOString(),
     entries,
+    penalties,
     status: "pending",
   };
 
@@ -152,14 +230,8 @@ export async function approveResult(resultId: string) {
   };
   await ApprovedResultModel.create(approvedRecord);
 
-  for (const entry of record.entries) {
-    if (entry.student_id) {
-      await updateStudentScore(entry.student_id, entry.score);
-    }
-    if (entry.team_id) {
-      await updateLiveScore(entry.team_id, entry.score);
-    }
-  }
+  await applyEntryScores(record.entries, 1);
+  await applyPenalties(record.penalties, 1);
 
   await updateAssignmentStatus(record.program_id, record.jury_id, "completed");
 
@@ -184,6 +256,7 @@ export async function rejectResult(resultId: string) {
 export async function updatePendingResultEntries(
   resultId: string,
   winners: WinnerPayload[],
+  penaltiesPayload?: PenaltyPayload[] | null,
 ) {
   await connectDB();
   const record = await PendingResultModel.findOne({ id: resultId }).lean();
@@ -193,10 +266,13 @@ export async function updatePendingResultEntries(
   const program = await ProgramModel.findOne({ id: record.program_id }).lean();
   if (!program) throw new Error("Program not found");
   const entries = await buildEntries(program, winners);
+  const penalties = await buildPenaltyEntries(penaltiesPayload);
+
   await PendingResultModel.updateOne(
     { id: resultId },
     {
       entries,
+      penalties,
       submitted_at: new Date().toISOString(),
     },
   );
@@ -206,6 +282,7 @@ export async function updatePendingResultEntries(
 export async function updateApprovedResult(
   resultId: string,
   winners: WinnerPayload[],
+  penaltiesPayload?: PenaltyPayload[] | null,
 ) {
   await connectDB();
   const record = await ApprovedResultModel.findOne({ id: resultId }).lean();
@@ -215,15 +292,19 @@ export async function updateApprovedResult(
   const program = await ProgramModel.findOne({ id: record.program_id }).lean();
   if (!program) throw new Error("Program not found");
   const entries = await buildEntries(program, winners);
+  const penalties = await buildPenaltyEntries(penaltiesPayload);
   await applyEntryScores(record.entries, -1);
+  await applyPenalties(record.penalties, -1);
   await ApprovedResultModel.updateOne(
     { id: resultId },
     {
       entries,
+      penalties,
       submitted_at: new Date().toISOString(),
     },
   );
   await applyEntryScores(entries, 1);
+  await applyPenalties(penalties, 1);
   revalidatePath("/");
   revalidatePath("/scoreboard");
   revalidatePath("/results");
@@ -235,6 +316,7 @@ export async function deleteApprovedResult(resultId: string) {
   const record = await ApprovedResultModel.findOne({ id: resultId }).lean();
   if (!record) return;
   await applyEntryScores(record.entries, -1);
+  await applyPenalties(record.penalties, -1);
   await ApprovedResultModel.deleteOne({ id: resultId });
   await updateAssignmentStatus(record.program_id, record.jury_id, "submitted");
   revalidatePath("/");

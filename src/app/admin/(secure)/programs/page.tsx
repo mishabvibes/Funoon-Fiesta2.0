@@ -36,6 +36,10 @@ const csvRowSchema = z.object({
     .transform((value) => value === "true")
     .pipe(z.boolean()),
   category: z.enum(["A", "B", "C", "none"]),
+  candidate_limit: z.coerce.number().min(1, "candidate_limit must be at least 1").max(
+    10,
+    "candidate_limit must be at most 10",
+  ),
 });
 
 async function mutateProgram(
@@ -159,7 +163,7 @@ function parseCsv(content: string) {
   const headers = headerLine
     .split(",")
     .map((header) => header.trim().toLowerCase());
-  const requiredHeaders = ["name", "section", "stage", "category"];
+  const requiredHeaders = ["name", "section", "stage", "category", "candidate_limit"];
   for (const column of requiredHeaders) {
     if (!headers.includes(column)) {
       throw new Error(`Missing "${column}" column in CSV header.`);
@@ -200,7 +204,7 @@ async function importProgramsAction(formData: FormData) {
       section: parsed.data.section,
       stage: parsed.data.stage,
       category: parsed.data.category,
-      candidateLimit: 1,
+      candidateLimit: parsed.data.candidate_limit,
     });
   }
   revalidatePath("/admin/programs");
@@ -266,7 +270,7 @@ export default async function ProgramsPage() {
       <Card className="h-full">
         <CardTitle>Bulk Import (CSV)</CardTitle>
         <CardDescription className="mt-2">
-          Required columns: <code>name, section, stage, category</code>
+          Required columns: <code>name, section, stage, category, candidate_limit</code>
         </CardDescription>
         <form
           action={importProgramsAction}

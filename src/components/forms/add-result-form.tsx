@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { SearchSelect } from "@/components/ui/search-select";
 import { Select } from "@/components/ui/select";
@@ -33,6 +34,11 @@ interface AddResultFormProps {
       }
     >
   >;
+  initialPenalties?: {
+    targetId?: string;
+    points?: number;
+    type?: "student" | "team";
+  }[];
   submitLabel?: string;
   mode?: "default" | "jury";
   juryName?: string;
@@ -54,12 +60,31 @@ export function AddResultForm({
   action,
   lockProgram = false,
   initial,
+  initialPenalties,
   submitLabel = "Submit for Approval",
   mode = "default",
   juryName,
 }: AddResultFormProps) {
   const [programId, setProgramId] = useState(programs[0]?.id ?? "");
   const [showRules, setShowRules] = useState(false);
+  const [penaltyRows, setPenaltyRows] = useState<
+    {
+      id: string;
+      defaultTarget?: string;
+      defaultPoints?: number;
+      type?: "student" | "team";
+    }[]
+  >(() => {
+    if (initialPenalties?.length) {
+      return initialPenalties.map((penalty, index) => ({
+        id: `penalty-${index}`,
+        defaultTarget: penalty.targetId,
+        defaultPoints: penalty.points,
+        type: penalty.type,
+      }));
+    }
+    return [{ id: "penalty-0" }];
+  });
   const selectedProgram = useMemo(
     () => programs.find((program) => program.id === programId) ?? programs[0],
     [programId, programs],
@@ -129,14 +154,28 @@ export function AddResultForm({
     ).values(),
   );
 
-  const registrationDriven = (registrations?.length ?? 0) > 0;
-  const placementSelectOptions = registrationDriven
-    ? isSingle
-      ? singleCandidateOptions
-      : teamCandidateOptions
-    : isSingle
-      ? studentOptions
-      : teamOptions;
+  const registeredOptions = isSingle ? singleCandidateOptions : teamCandidateOptions;
+  const fallbackOptions = isSingle ? studentOptions : teamOptions;
+  const useFallbackOptions = registeredOptions.length === 0 && !isJuryMode;
+  const placementSelectOptions = useFallbackOptions ? fallbackOptions : registeredOptions;
+  const penaltySelectOptions = placementSelectOptions;
+  const hasPenaltyOptions = penaltySelectOptions.length > 0;
+  const penaltyTypeDefault =
+    initialPenalties?.[0]?.type ?? (isSingle ? "student" : "team");
+  const penaltyRowIds = penaltyRows.map((row) => row.id);
+
+  const addPenaltyRow = () => {
+    setPenaltyRows((rows) => [
+      ...rows,
+      {
+        id: `penalty-${Math.random().toString(36).slice(2, 9)}`,
+      },
+    ]);
+  };
+
+  const removePenaltyRow = (rowId: string) => {
+    setPenaltyRows((rows) => (rows.length === 1 ? rows : rows.filter((row) => row.id !== rowId)));
+  };
   const hasEligibleCandidates = placementSelectOptions.length > 0;
   const showProgramSelector = !(isJuryMode && lockProgram);
 
@@ -146,39 +185,39 @@ export function AddResultForm({
       {isJuryMode && <input type="hidden" name="jury_id" value={activeJury?.id ?? ""} />}
 
       {showProgramSelector && (
-        <Card>
-          <Badge tone="cyan">Step 1 · Program</Badge>
+      <Card>
+        <Badge tone="cyan">Step 1 · Program</Badge>
           <CardTitle className="mt-4">
             {isJuryMode && lockProgram ? "Program locked in" : "Select a program"}
           </CardTitle>
-          <CardDescription className="mt-2">
+        <CardDescription className="mt-2">
             {isJuryMode && lockProgram
               ? "Admins have assigned this program to you. Review the details before entering results."
               : "We auto-fill stage, section, and scoring rules."}
-          </CardDescription>
-          <div className="mt-6">
+        </CardDescription>
+        <div className="mt-6">
             {isJuryMode && lockProgram ? (
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <p className="text-sm text-white/60">Program</p>
                 <p className="text-2xl font-semibold text-white">{selectedProgram?.name}</p>
               </div>
             ) : (
-              <SearchSelect
-                name="program_selector"
-                options={programOptions}
-                value={programId}
-                onValueChange={(next) => setProgramId(next)}
-                disabled={lockProgram}
-                placeholder="Search program..."
-              />
+          <SearchSelect
+            name="program_selector"
+            options={programOptions}
+            value={programId}
+            onValueChange={(next) => setProgramId(next)}
+            disabled={lockProgram}
+            placeholder="Search program..."
+          />
             )}
-          </div>
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-            <p>Section: {selectedProgram?.section}</p>
-            <p>Stage: {selectedProgram?.stage ? "On stage" : "Off stage"}</p>
-            <p>Category: {selectedProgram?.category}</p>
-          </div>
-        </Card>
+        </div>
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+          <p>Section: {selectedProgram?.section}</p>
+          <p>Stage: {selectedProgram?.stage ? "On stage" : "Off stage"}</p>
+          <p>Category: {selectedProgram?.category}</p>
+        </div>
+      </Card>
       )}
 
       <Card>
@@ -208,7 +247,7 @@ export function AddResultForm({
             </p>
           </div>
         )}
-        {registrationDriven && !hasEligibleCandidates && (
+        {!useFallbackOptions && !hasEligibleCandidates && (
           <p className="mt-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
             No registered candidates for this program yet.
           </p>
@@ -276,30 +315,98 @@ export function AddResultForm({
         )}
       </Card>
 
-      {!isJuryMode && (
-        <Card>
-          <Badge tone="emerald">Step 3 · Submit</Badge>
-          <CardTitle className="mt-4">Assign responsible jury</CardTitle>
-          <CardDescription className="mt-2">
-            Once you submit, the record lands in Pending Results for approval.
-          </CardDescription>
-          <Select
-            className="mt-6"
-            name="jury_id"
-            required
-            defaultValue={juries[0]?.id}
-            disabled={lockProgram}
+      <Card>
+        <Badge tone="amber">Optional · Minus Points</Badge>
+        <CardTitle className="mt-4">No-show penalty</CardTitle>
+        <CardDescription className="mt-2">
+          Apply a deduction when a {isSingle ? "registered participant" : "team"} fails to appear.
+          Leave blank to skip.
+        </CardDescription>
+        <input type="hidden" name="penalty_rows" value={penaltyRowIds.join(",")} />
+        <div className="mt-6 space-y-4">
+          {penaltyRows.map((row) => {
+            const rowType = row.type ?? penaltyTypeDefault;
+            return (
+              <div
+                key={row.id}
+                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+              >
+                <input type="hidden" name={`penalty_type_${row.id}`} value={rowType} />
+                <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                  <div className="flex-1">
+                    <SearchSelect
+                      name={`penalty_target_${row.id}`}
+                      options={penaltySelectOptions}
+                      placeholder={`Select a ${isSingle ? "participant" : "team"} to penalize`}
+                      defaultValue={row.defaultTarget ?? ""}
+                      disabled={!hasPenaltyOptions}
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 md:w-60">
+                    <Input
+                      name={`penalty_points_${row.id}`}
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="Penalty points"
+                      defaultValue={row.defaultPoints ?? ""}
+                      disabled={!hasPenaltyOptions}
+                      
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-xs text-white/80"
+                      onClick={() => removePenaltyRow(row.id)}
+                      disabled={penaltyRows.length === 1}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={addPenaltyRow}
+            disabled={!hasPenaltyOptions}
           >
-            {juries.map((jury) => (
-              <option key={jury.id} value={jury.id}>
-                {jury.name}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit" className="mt-4" disabled={!hasEligibleCandidates}>
-            {submitLabel}
+            Add penalty
           </Button>
-        </Card>
+        </div>
+        <p className="mt-3 text-xs text-white/50">
+          Enter the number of points to deduct. Each entry reduces the team total only.
+        </p>
+      </Card>
+
+      {!isJuryMode && (
+      <Card>
+        <Badge tone="emerald">Step 3 · Submit</Badge>
+        <CardTitle className="mt-4">Assign responsible jury</CardTitle>
+        <CardDescription className="mt-2">
+          Once you submit, the record lands in Pending Results for approval.
+        </CardDescription>
+        <Select
+          className="mt-6"
+          name="jury_id"
+          required
+          defaultValue={juries[0]?.id}
+          disabled={lockProgram}
+        >
+          {juries.map((jury) => (
+            <option key={jury.id} value={jury.id}>
+              {jury.name}
+            </option>
+          ))}
+        </Select>
+          <Button type="submit" className="mt-4" disabled={!hasEligibleCandidates}>
+          {submitLabel}
+        </Button>
+      </Card>
       )}
       <Modal
         open={showRules}

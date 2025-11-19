@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Eye, Pencil, Search, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, Pencil, Search, Trash2, Download, FileText, FileSpreadsheet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
-import type { Student, Team } from "@/lib/types";
+import { SearchSelect } from "@/components/ui/search-select";
+import type { Student, Team, Program, ProgramRegistration } from "@/lib/types";
 
 interface StudentManagerProps {
   students: Student[];
   teams: Team[];
+  programs?: Program[];
+  registrations?: ProgramRegistration[];
   updateAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
   bulkDeleteAction: (formData: FormData) => Promise<void>;
@@ -28,6 +31,8 @@ const pageSizeOptions = [
 export function StudentManager({
   students,
   teams,
+  programs = [],
+  registrations = [],
   updateAction,
   deleteAction,
   bulkDeleteAction,
@@ -37,9 +42,34 @@ export function StudentManager({
     [teams],
   );
   const teamMap = useMemo(() => new Map(teams.map((team) => [team.id, team.name])), [teams]);
+  
+  const programOptions = useMemo(
+    () => [
+      { value: "", label: "All Programs" },
+      ...programs.map((program) => ({
+        value: program.id,
+        label: program.name,
+        meta: `${program.section} · ${program.category !== "none" ? `Cat ${program.category}` : "General"}`,
+      })),
+    ],
+    [programs],
+  );
+  const programMap = useMemo(() => new Map(programs.map((program) => [program.id, program.name])), [programs]);
+  
+  const studentRegistrationsMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    registrations.forEach((registration) => {
+      if (!map.has(registration.studentId)) {
+        map.set(registration.studentId, new Set());
+      }
+      map.get(registration.studentId)!.add(registration.programId);
+    });
+    return map;
+  }, [registrations]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
+  const [programFilter, setProgramFilter] = useState("");
   const [sort, setSort] = useState<SortOption>("latest");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,10 +77,11 @@ export function StudentManager({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(pageSizeOptions[0].value);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, teamFilter, sort]);
+  }, [searchQuery, teamFilter, programFilter, sort]);
 
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -58,9 +89,12 @@ export function StudentManager({
       const matchesSearch =
         student.name.toLowerCase().includes(query) || student.chest_no.toLowerCase().includes(query);
       const matchesTeam = teamFilter ? student.team_id === teamFilter : true;
-      return matchesSearch && matchesTeam;
+      const matchesProgram = programFilter
+        ? studentRegistrationsMap.get(student.id)?.has(programFilter) ?? false
+        : true;
+      return matchesSearch && matchesTeam && matchesProgram;
     });
-  }, [students, searchQuery, teamFilter]);
+  }, [students, searchQuery, teamFilter, programFilter, studentRegistrationsMap]);
 
   const sortedStudents = useMemo(() => {
     const list = [...filteredStudents];
@@ -120,6 +154,102 @@ export function StudentManager({
 
   const viewStudent = viewStudentId ? students.find((student) => student.id === viewStudentId) : null;
 
+  const exportToCSV = () => {
+    const headers = ["Name", "Chest Number", "Team", "Total Points"];
+    const rows = sortedStudents.map((student) => [
+      student.name,
+      student.chest_no,
+      teamMap.get(student.team_id) ?? "Unknown",
+      student.total_points.toString(),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `students_${new Date().toISOString().split("T")[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToPDF = async () => {
+    try {
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      
+      doc.setFontSize(18);
+      doc.text("Students Roster", 14, 22);
+      
+      doc.setFontSize(11);
+      const dateStr = new Date().toLocaleDateString();
+      let yPos = 30;
+      doc.text(`Generated on: ${dateStr}`, 14, yPos);
+      yPos += 8;
+      
+      if (teamFilter) {
+        doc.text(`Team: ${teamMap.get(teamFilter) ?? "Unknown"}`, 14, yPos);
+        yPos += 6;
+      }
+      if (programFilter) {
+        doc.text(`Program: ${programMap.get(programFilter) ?? "Unknown"}`, 14, yPos);
+        yPos += 6;
+      }
+      
+      yPos += 4;
+      
+      const headers = ["Name", "Chest Number", "Team", "Total Points"];
+      const colWidths = [60, 40, 50, 30];
+      const startX = 14;
+      
+      doc.setFontSize(10);
+      doc.setFont(undefined, "bold");
+      let xPos = startX;
+      headers.forEach((header, i) => {
+        doc.text(header, xPos, yPos);
+        xPos += colWidths[i];
+      });
+      
+      yPos += 6;
+      doc.setFont(undefined, "normal");
+      doc.setFontSize(9);
+      
+      sortedStudents.forEach((student, index) => {
+        if (yPos > 280) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        xPos = startX;
+        const rowData = [
+          student.name,
+          student.chest_no,
+          teamMap.get(student.team_id) ?? "Unknown",
+          student.total_points.toString(),
+        ];
+        
+        rowData.forEach((cell, i) => {
+          const cellText = doc.splitTextToSize(cell, colWidths[i] - 2);
+          doc.text(cellText, xPos, yPos);
+          xPos += colWidths[i];
+        });
+        
+        yPos += 7;
+      });
+
+      doc.save(`students_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      alert("PDF export requires jsPDF library. Please install it: npm install jspdf");
+    }
+  };
+
   return (
     <div className="space-y-6 rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-[0_20px_60px_rgba(8,47,73,0.35)]">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -128,19 +258,72 @@ export function StudentManager({
           <h2 className="text-2xl font-semibold text-white">Manage participants</h2>
           <p className="text-sm text-white/60">Search, filter, edit, or bulk-delete student entries.</p>
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          className="gap-2"
-          disabled={!hasSelection}
-          onClick={() => setShowDeleteModal(true)}
-        >
-          <Trash2 className="h-4 w-4" />
-          Bulk delete ({selected.size})
-        </Button>
+        <div className="flex gap-2">
+          <div className="relative">
+            <Button
+              type="button"
+              variant="secondary"
+              className="gap-2"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+            {showExportMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div className="absolute right-0 top-full mt-2 z-50">
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-2 min-w-[180px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        exportToCSV();
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm text-white transition hover:bg-white/10"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                      <div>
+                        <p className="font-semibold">Export as CSV</p>
+                        <p className="text-xs text-white/60">Spreadsheet format</p>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await exportToPDF();
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm text-white transition hover:bg-white/10"
+                    >
+                      <FileText className="h-4 w-4 text-red-400" />
+                      <div>
+                        <p className="font-semibold">Export as PDF</p>
+                        <p className="text-xs text-white/60">Document format</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="gap-2"
+            disabled={!hasSelection}
+            onClick={() => setShowDeleteModal(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            Bulk delete ({selected.size})
+          </Button>
+        </div>
       </div>
 
-      <div className="relative z-20 grid gap-3 md:grid-cols-4">
+      <div className="relative z-20 grid gap-3 md:grid-cols-5">
         <div className="relative z-20 md:col-span-2 flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 transition-all duration-200 hover:border-white/20 focus-within:border-fuchsia-400/50 focus-within:ring-2 focus-within:ring-fuchsia-400/30 focus-within:bg-white/10">
           <Search className="mr-2 h-4 w-4 text-white/50 flex-shrink-0" />
           <Input
@@ -158,6 +341,15 @@ export function StudentManager({
             </option>
           ))}
         </Select>
+        {programOptions.length > 1 && (
+          <SearchSelect
+            name="program_filter"
+            options={programOptions}
+            value={programFilter}
+            onValueChange={(value) => setProgramFilter(value)}
+            placeholder="Filter by program"
+          />
+        )}
         <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))}>
           {pageSizeOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -276,7 +468,10 @@ export function StudentManager({
                 >
                   <input type="hidden" name="id" value={student.id} />
                   <Input name="name" defaultValue={student.name} placeholder="Student name" />
-                  <Input name="chest_no" defaultValue={student.chest_no} placeholder="Chest number" />
+                  <input type="hidden" name="chest_no" value={student.chest_no} />
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/70">
+                    Chest: {student.chest_no}
+                  </div>
                   <Select name="team_id" defaultValue={student.team_id}>
                     {teams.map((team) => (
                       <option key={team.id} value={team.id}>

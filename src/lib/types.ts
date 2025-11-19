@@ -53,6 +53,13 @@ export interface ResultEntry {
   score: number;
 }
 
+export interface PenaltyEntry {
+  student_id?: string;
+  team_id?: string;
+  points: number;
+  reason?: string;
+}
+
 export interface ResultRecord {
   id: string;
   program_id: string;
@@ -62,6 +69,7 @@ export interface ResultRecord {
   entries: ResultEntry[];
   status: "pending" | "approved";
   notes?: string;
+  penalties?: PenaltyEntry[];
 }
 
 export interface LiveScore {
