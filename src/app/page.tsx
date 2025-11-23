@@ -1,16 +1,3 @@
-// Temporarily showing Coming Soon page - original code preserved below
-import ComingSoon from "@/components/coming-soon";
-
-export default function HomePage() {
-  // Show Coming Soon page
-  return <ComingSoon />;
-}
-
-/* ============================================
-   ORIGINAL ROOT PAGE CODE (PRESERVED)
-   Uncomment below and remove ComingSoon import above to restore
-   ============================================
-
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -168,5 +155,3 @@ export default async function HomePage() {
       </main>
   );
 }
-
-============================================ */
