@@ -225,9 +225,9 @@ select option:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Force all buttons to have rounded-xl corners */
+/* Force all buttons to have rounded-2xl corners */
 button {
-  border-radius: 0.75rem !important; /* rounded-xl = 0.75rem */
+  border-radius: 1rem !important; /* rounded-2xl = 1rem */
 }
 
 /* Better checkbox styling */

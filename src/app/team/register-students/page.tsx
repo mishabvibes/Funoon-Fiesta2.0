@@ -171,7 +171,7 @@ export default async function RegisterStudentsPage({
 
       {/* Messages */}
       {(error || success) && (
-        <Card className={`border ${error ? "border-red-500/40 bg-red-500/10" : "border-emerald-500/40 bg-emerald-500/10"} p-4`}>
+        <Card className={`rounded-2xl border ${error ? "border-red-500/40 bg-red-500/10" : "border-emerald-500/40 bg-emerald-500/10"} p-4`}>
           <p className={`text-sm ${error ? "text-red-300" : "text-emerald-300"}`}>
             {error ?? success}
           </p>
@@ -180,7 +180,7 @@ export default async function RegisterStudentsPage({
 
       {/* Registration Status Banner */}
       {!isOpen && (
-        <Card className="border-amber-500/40 bg-amber-500/10 p-4">
+        <Card className="rounded-2xl border-amber-500/40 bg-amber-500/10 p-4">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-amber-500/20 p-2">
               <svg className="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -198,7 +198,7 @@ export default async function RegisterStudentsPage({
       )}
 
       {/* Add Student Form */}
-      <Card className={`border-white/10 bg-white/5 p-4 sm:p-6 text-white ${!isOpen ? 'opacity-60' : ''}`}>
+      <Card className={`rounded-2xl border-white/10 bg-white/5 p-4 sm:p-6 text-white ${!isOpen ? 'opacity-60' : ''}`}>
         <div className="flex items-center gap-2 mb-4">
           <div className="rounded-lg bg-cyan-500/20 p-2">
             <svg className="h-5 w-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,7 +226,7 @@ export default async function RegisterStudentsPage({
             </form>
           </>
         ) : (
-          <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/10">
+          <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10">
             <p className="text-sm text-white/60 text-center">
               Registration window is closed. Please wait for the admin to open registration.
             </p>

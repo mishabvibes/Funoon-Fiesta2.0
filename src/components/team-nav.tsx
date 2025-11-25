@@ -35,7 +35,7 @@ export function TeamNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all duration-200",
+                "flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-semibold transition-all duration-200",
                 isActive
                   ? "bg-white/10 text-white shadow-sm"
                   : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -84,7 +84,7 @@ export function TeamNav() {
                     href={item.href}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200",
+                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200",
                       isActive
                         ? "bg-white/10 text-white shadow-sm"
                         : "text-white/70 hover:bg-white/10 hover:text-white"

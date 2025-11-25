@@ -139,11 +139,11 @@ export default async function TeamDashboardPage() {
             
             {/* Mobile Quick Stats */}
             <div className="grid grid-cols-2 gap-3 mt-4">
-              <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
                 <p className="text-xs text-white/60 mb-1">Members</p>
                 <p className="text-xl font-bold text-white">{teamStudents.length}</p>
               </div>
-              <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
                 <p className="text-xs text-white/60 mb-1">Registrations</p>
                 <p className="text-xl font-bold text-white">{teamRegistrations.length}</p>
               </div>
@@ -260,7 +260,7 @@ export default async function TeamDashboardPage() {
                   return (
                     <div
                       key={registration.id}
-                      className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-2.5"
+                      className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-2.5"
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">{registration.studentName}</p>
@@ -392,7 +392,7 @@ export default async function TeamDashboardPage() {
                 <h2 className="text-lg font-semibold text-white">Program Breakdown</h2>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-4 rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center p-4 rounded-2xl border border-white/10 bg-white/5">
                   <div className="flex justify-center mb-2">
                     <div className="rounded-lg bg-fuchsia-500/20 p-2">
                       <UserPlus className="h-4 w-4 text-fuchsia-400" />
@@ -401,7 +401,7 @@ export default async function TeamDashboardPage() {
                   <p className="text-2xl font-bold text-white">{singleRegistrations.length}</p>
                   <p className="text-xs text-white/60 mt-1">Single Events</p>
                 </div>
-                <div className="text-center p-4 rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center p-4 rounded-2xl border border-white/10 bg-white/5">
                   <div className="flex justify-center mb-2">
                     <div className="rounded-lg bg-emerald-500/20 p-2">
                       <Users className="h-4 w-4 text-emerald-400" />
@@ -410,7 +410,7 @@ export default async function TeamDashboardPage() {
                   <p className="text-2xl font-bold text-white">{groupRegistrations.length}</p>
                   <p className="text-xs text-white/60 mt-1">Group Events</p>
                 </div>
-                <div className="text-center p-4 rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center p-4 rounded-2xl border border-white/10 bg-white/5">
                   <div className="flex justify-center mb-2">
                     <div className="rounded-lg bg-amber-500/20 p-2">
                       <Award className="h-4 w-4 text-amber-400" />
@@ -445,7 +445,7 @@ export default async function TeamDashboardPage() {
                     return (
                       <div
                         key={registration.id}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10"
+                        className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4 transition-colors hover:bg-white/10"
                       >
                         <div className="flex items-center gap-4 flex-1 min-w-0">
                           <div className={`rounded-lg bg-gradient-to-br ${stats.find(s => s.label === "Registrations")?.color || "from-fuchsia-500 to-pink-600"} p-2.5 shrink-0`}>

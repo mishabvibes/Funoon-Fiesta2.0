@@ -76,7 +76,7 @@ export default function Sidenavbar({
     <div className="flex min-h-screen flex-col gap-4">
       {/* Mobile navbar + drawer menu */}
       <div className="flex flex-col gap-4 md:hidden">
-        <header className="flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+        <header className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
           <span className="text-lg font-semibold text-white">{heading}</span>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -129,7 +129,7 @@ export default function Sidenavbar({
       <div className="hidden min-h-screen gap-6 md:flex relative">
         <aside
           className={cn(
-            "fixed left-4 top-10 bottom-10 z-50 flex flex-col rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md transition-all duration-300 ease-in-out shadow-2xl shadow-black/20",
+            "fixed left-4 top-10 bottom-10 z-50 flex flex-col rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md transition-all duration-300 ease-in-out shadow-2xl shadow-black/20",
             isOpen ? "w-64" : "w-20",
           )}
         >
@@ -157,7 +157,7 @@ export default function Sidenavbar({
             </Button>
           </div>
           <ScrollArea className="flex-1">
-            <nav className="p-4">
+            <nav className="p-3 space-y-1">
               {items.map((item) => {
                 const IconComponent = item.icon ? ICONS[item.icon] : undefined;
                 const isActive = pathname?.startsWith(item.href ?? "");
@@ -166,69 +166,88 @@ export default function Sidenavbar({
                 ) ?? false;
                 
                 return item.children && item.children.length > 0 ? (
-                  <Collapsible key={item.label} className="space-y-1" defaultOpen={hasActiveChild}>
+                  <Collapsible 
+                    key={item.label} 
+                    className="space-y-1" 
+                    defaultOpen={hasActiveChild}
+                    disabled={!isOpen}
+                  >
                     <CollapsibleTrigger asChild>
                       <Button
                         variant="ghost"
                         className={cn(
-                          "w-full justify-start",
-                          !isOpen && "px-0",
+                          "w-full rounded-2xl h-10",
+                          isActive && "bg-white/10 text-white",
+                          !isActive && "text-white/70 hover:bg-white/10 hover:text-white",
+                          !isOpen ? "justify-center px-0" : "justify-start px-3",
                         )}
+                        title={!isOpen ? item.label : undefined}
                       >
                         {IconComponent && (
-                          <IconComponent className="mr-2 h-4 w-4" />
+                          <IconComponent className={cn(
+                            "shrink-0 text-white",
+                            isOpen ? "h-4 w-4" : "h-5 w-5"
+                          )} />
                         )}
                         {isOpen && (
                           <>
-                            {item.label}
-                            <ChevronRight className="ml-auto h-4 w-4" />
+                            <span className="flex-1 text-left ml-2">{item.label}</span>
+                            <ChevronRight className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 data-[state=open]:rotate-90" />
                           </>
                         )}
                       </Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="ml-4 space-y-1">
-                      {item.children.map((child) => (
-                        <Button
-                          key={child.href}
-                          variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "w-full justify-start text-white/80",
-                            pathname?.startsWith(child.href) &&
-                              "bg-white/10 text-white",
-                          )}
-                          asChild
-                        >
-                          <Link href={child.href}>{child.label}</Link>
-                        </Button>
-                      ))}
-                    </CollapsibleContent>
+                    {isOpen && (
+                      <CollapsibleContent className="ml-2 space-y-1 mt-1">
+                        {item.children.map((child) => (
+                          <Button
+                            key={child.href}
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                              "w-full justify-start rounded-2xl h-9 text-white/80",
+                              pathname?.startsWith(child.href) &&
+                                "bg-white/10 text-white",
+                              !pathname?.startsWith(child.href) && "hover:bg-white/10 hover:text-white"
+                            )}
+                            asChild
+                          >
+                            <Link href={child.href} className="w-full flex items-center">{child.label}</Link>
+                          </Button>
+                        ))}
+                      </CollapsibleContent>
+                    )}
                   </Collapsible>
                 ) : (
                   <Button
                     key={item.href ?? item.label}
                     variant="ghost"
                     className={cn(
-                      "w-full justify-start",
+                      "w-full rounded-2xl h-10",
                       pathname?.startsWith(item.href ?? "") &&
                         "bg-white/10 text-white",
-                      !isOpen && "px-0",
+                      !pathname?.startsWith(item.href ?? "") && "text-white/70 hover:bg-white/10 hover:text-white",
+                      !isOpen ? "justify-center px-0" : "justify-start px-3",
                     )}
                     asChild
                   >
                     <Link
                       href={item.href ?? "#"}
-                      className="flex w-full items-center my-2"
+                      className={cn(
+                        "flex w-full items-center",
+                        isOpen ? "gap-3 justify-start" : "justify-center"
+                      )}
+                      title={!isOpen ? item.label : undefined}
                     >
                       {IconComponent && (
                         <IconComponent
                           className={cn(
-                            "h-4 w-4 shrink-0",
-                            isOpen ? "mr-4" : "mr-0",
+                            "shrink-0 text-white",
+                            isOpen ? "h-4 w-4" : "h-5 w-5"
                           )}
                         />
                       )}
-                      {isOpen && item.label}
+                      {isOpen && <span className="flex-1 text-left ml-0">{item.label}</span>}
                     </Link>
                   </Button>
                 );

@@ -79,7 +79,7 @@ export function TeamStudentList({ students, updateAction, deleteAction, isRegist
 
   if (students.length === 0) {
     return (
-      <Card className="border-white/10 bg-white/5 p-8 text-center text-white">
+      <Card className="rounded-2xl border-white/10 bg-white/5 p-8 text-center text-white">
         <User className="mx-auto h-12 w-12 text-white/30 mb-4" />
         <p className="text-sm text-white/60">No students added yet.</p>
       </Card>
@@ -125,7 +125,7 @@ export function TeamStudentList({ students, updateAction, deleteAction, isRegist
 
       {/* Students List */}
       {filteredStudents.length === 0 && searchQuery ? (
-        <Card className="border-white/10 bg-white/5 p-8 text-center text-white">
+        <Card className="rounded-2xl border-white/10 bg-white/5 p-8 text-center text-white">
           <Search className="mx-auto h-12 w-12 text-white/30 mb-4" />
           <p className="text-sm text-white/60 mb-2">No results found</p>
           <p className="text-xs text-white/40">Try a different search term</p>
@@ -139,13 +139,13 @@ export function TeamStudentList({ students, updateAction, deleteAction, isRegist
         return (
           <Card
             key={student.id}
-            className="group border border-white/10 bg-white/5 p-4 text-white transition-all hover:bg-white/10 hover:border-white/20"
+            className="rounded-2xl group border border-white/10 bg-white/5 p-4 text-white transition-all hover:bg-white/10 hover:border-white/20"
           >
             {isEditing ? (
               // Edit Mode
               <div className="space-y-3">
                 {!isRegistrationOpen && (
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-3">
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-3">
                     <Lock className="h-4 w-4 text-amber-400" />
                     <p className="text-xs text-amber-300">Registration window is closed. Changes cannot be saved.</p>
                   </div>
@@ -205,7 +205,7 @@ export function TeamStudentList({ students, updateAction, deleteAction, isRegist
               // View Mode
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 p-2.5 shrink-0">
+                  <div className="rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 p-2.5 shrink-0">
                     <User className="h-5 w-5 text-cyan-400" />
                   </div>
                   <div className="flex-1 min-w-0">
