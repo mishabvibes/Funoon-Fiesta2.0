@@ -169,8 +169,7 @@ export default function Sidenavbar({
                   <Collapsible 
                     key={item.label} 
                     className="space-y-1" 
-                    defaultOpen={hasActiveChild}
-                    disabled={!isOpen}
+                    defaultOpen={hasActiveChild && isOpen}
                   >
                     <CollapsibleTrigger asChild>
                       <Button
